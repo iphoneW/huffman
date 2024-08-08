@@ -1,0 +1,15 @@
+void buildCodes(Node* root, char* code, int depth, char codes[256][256]) {
+    if (root->left) {
+        code[depth] = '0';
+        buildCodes(root->left, code, depth + 1, codes);
+    }
+    if (root->right) {
+        code[depth] = '1';
+        buildCodes(root->right, code, depth + 1, codes);
+    }
+    if (!root->left && !root->right) {
+        code[depth] = '\0';
+        strcpy(codes[(unsigned char)root->ch], code);
+    }
+}
+// בניית הטבל לדעת את הערך של התווים
