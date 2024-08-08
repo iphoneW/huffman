@@ -1,0 +1,24 @@
+Node* buildTree(char* chars, int* freqs, int n) {
+    Node* nodes = (Node*)malloc(n * sizeof(Node));
+    for (int i = 0; i < n; ++i) {
+        nodes[i] = *createNode(chars[i], freqs[i], NULL, NULL);
+    }
+
+    while (n > 1) {
+        qsort(nodes, n, sizeof(Node), compare);
+
+        Node* left = createNode(nodes[0].ch, nodes[0].freq, nodes[0].left, nodes[0].right);
+        Node* right = createNode(nodes[1].ch, nodes[1].freq, nodes[1].left, nodes[1].right);
+
+        nodes[0] = *createNode('\0', left->freq + right->freq, left, right);
+        nodes[1] = nodes[n - 1];
+        n--;
+    }
+
+    Node* root = (Node*)malloc(sizeof(Node));
+    *root = nodes[0];
+    free(nodes);
+    return root;
+}
+
+// method to building the tree using the previous method given by you
