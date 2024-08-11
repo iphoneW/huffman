@@ -1,0 +1,139 @@
+void compressFile(char* input, char* output) {
+
+	
+
+	
+
+    FILE* in = fopen(input, "r");
+
+    FILE* out = fopen(output, "wb");
+
+
+
+    if (!in || !out) {
+
+        perror("File open failed");
+
+        return;  }
+
+
+
+    fseek(in, 0, SEEK_END);
+
+   
+
+    long fileSize = ftell(in);
+
+    
+
+    fseek(in, 0, SEEK_SET);
+
+
+
+    char* text = (char*)malloc(fileSize + 1);
+
+  
+
+    fread(text, 1, fileSize, in);
+
+
+
+   text[fileSize] = '\0';
+
+
+
+    int freqs[256] = {0};
+
+  
+
+    getFreq(text, freqs);
+
+
+
+    char chars[256];
+
+    int freqArray[256];
+
+    int size = 0;
+
+    for (int i = 0; i < 256; ++i) {
+
+        if (freqs[i]) {
+
+            chars[size] = (char)i;
+
+            freqArray[size] = freqs[i];
+
+           size++;  }    }
+
+    Node* root = buildTree(chars, freqArray, size);
+
+    char codes[256][256] = {0};
+
+    char code[256];
+
+    buildCodes(root, code, 0, codes);
+
+
+
+    fwrite(&size, sizeof(int), 1, out);
+
+    fwrite(&fileSize, sizeof(long), 1, out);
+
+    for (int i = 0; i < size; ++i) {
+
+        fwrite(&chars[i], sizeof(char), 1, out);
+
+        fwrite(&freqArray[i], sizeof(int), 1, out);  }
+
+    char buffer[8] = {0};
+
+    int bufferIndex = 0;
+
+    for (int i = 0; i < fileSize; ++i) {
+
+        char* code = codes[(unsigned char)text[i]];
+
+        for (int j = 0; j < strlen(code); ++j) {
+
+            buffer[bufferIndex++] = code[j];
+
+            if (bufferIndex == 8) {
+
+                unsigned char byte = 0;
+
+                for (int k = 0; k < 8; ++k) {
+
+                    byte = byte << 1 | (buffer[k] - '0');
+
+                }
+
+                fwrite(&byte, sizeof(unsigned char), 1, out);
+
+                bufferIndex = 0;
+
+          }   }  }
+
+    if (bufferIndex > 0) {
+
+        unsigned char byte = 0;
+
+        for (int i = 0; i < bufferIndex; ++i) {
+
+            byte = byte << 1 | (buffer[i] - '0');
+
+        }
+
+        byte = byte << (8 - bufferIndex);
+
+        fwrite(&byte, sizeof(unsigned char), 1, out);
+
+    }
+
+    free(text);
+
+    fclose(in);
+
+    fclose(out);
+
+}
