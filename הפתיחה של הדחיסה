@@ -1,0 +1,43 @@
+void decompressFile(char* input, char* output) {
+    FILE* in = fopen(input, "rb");
+    FILE* out = fopen(output, "w");
+
+    if (!in || !out) {
+        perror("File open failed");
+        return; }
+
+    int size;
+    
+    fread(&size, sizeof(int), 1, in);
+
+   
+    long fileSize;
+   
+    fread(&fileSize, sizeof(long), 1, in);
+
+    char chars[256];
+    int freqArray[256];
+    for (int i = 0; i < size; ++i) {
+        fread(&chars[i], sizeof(char), 1, in);
+        fread(&freqArray[i], sizeof(int), 1, in);
+    }
+    Node* root = buildTree(chars, freqArray, size);
+    Node* current = root;
+    unsigned char byte;
+    long outputCount = 0;
+    while (fread(&byte, sizeof(unsigned char), 1, in)) {
+        for (int i = 7; i >= 0; --i) {
+            if (outputCount >= fileSize) {
+                break;
+            }
+            int bit = (byte >> i) & 1;
+            current = bit ? current->right : current->left;
+            if (!current->left && !current->right) {
+                fputc(current->ch, out);
+                current = root;
+                outputCount++;
+            }    }   }
+
+    fclose(in);
+    fclose(out);
+}
