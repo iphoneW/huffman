@@ -1,0 +1,205 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+typedef struct Node {
+    char ch;
+    int freq;
+    struct Node *left, *right;
+} Node;
+
+Node* createNode(char ch, int freq, Node* left, Node* right) {
+    Node* node = (Node*)malloc(sizeof(Node));
+    node->ch = ch;
+    node->freq = freq;
+    node->left = left;
+    node->right = right;
+    return node;
+}
+
+int compare(const void* a, const void* b) {
+    return ((Node*)a)->freq - ((Node*)b)->freq;
+}
+
+Node* buildTree(char* chars, int* freqs, int n) {
+    Node* nodes = (Node*)malloc(n * sizeof(Node));
+    for (int i = 0; i < n; ++i) {
+        nodes[i] = *createNode(chars[i], freqs[i], NULL, NULL);
+    }
+
+    while (n > 1) {
+        qsort(nodes, n, sizeof(Node), compare);
+
+        Node* left = createNode(nodes[0].ch, nodes[0].freq, nodes[0].left, nodes[0].right);
+        Node* right = createNode(nodes[1].ch, nodes[1].freq, nodes[1].left, nodes[1].right);
+
+        nodes[0] = *createNode('\0', left->freq + right->freq, left, right);
+        nodes[1] = nodes[n - 1];
+        n--;
+    }
+
+    Node* root = (Node*)malloc(sizeof(Node));
+    *root = nodes[0];
+    free(nodes);
+    return root;
+}
+
+void buildCodes(Node* root, char* code, int depth, char codes[256][256]) {
+    if (root->left) {
+        code[depth] = '0';
+        buildCodes(root->left, code, depth + 1, codes);
+    }
+    if (root->right) {
+        code[depth] = '1';
+        buildCodes(root->right, code, depth + 1, codes);
+    }
+    if (!root->left && !root->right) {
+        code[depth] = '\0';
+        strcpy(codes[(unsigned char)root->ch], code);
+    }
+}
+void getFreq(char* text, int* freqs) {
+    for (int i = 0; i < strlen(text); ++i) {
+        freqs[(unsigned char)text[i]]++;}}
+
+void compressFile(char* input, char* output) {
+	
+	
+    FILE* in = fopen(input, "r");
+    FILE* out = fopen(output, "wb");
+
+    if (!in || !out) {
+        perror("File open failed");
+        return;  }
+
+    fseek(in, 0, SEEK_END);
+   
+    long fileSize = ftell(in);
+    
+    fseek(in, 0, SEEK_SET);
+
+    char* text = (char*)malloc(fileSize + 1);
+  
+    fread(text, 1, fileSize, in);
+
+   text[fileSize] = '\0';
+
+    int freqs[256] = {0};
+  
+    getFreq(text, freqs);
+
+    char chars[256];
+    int freqArray[256];
+    int size = 0;
+    for (int i = 0; i < 256; ++i) {
+        if (freqs[i]) {
+            chars[size] = (char)i;
+            freqArray[size] = freqs[i];
+           size++;  }    }
+    Node* root = buildTree(chars, freqArray, size);
+    char codes[256][256] = {0};
+    char code[256];
+    buildCodes(root, code, 0, codes);
+
+    fwrite(&size, sizeof(int), 1, out);
+    fwrite(&fileSize, sizeof(long), 1, out);
+    for (int i = 0; i < size; ++i) {
+        fwrite(&chars[i], sizeof(char), 1, out);
+        fwrite(&freqArray[i], sizeof(int), 1, out);  }
+    char buffer[8] = {0};
+    int bufferIndex = 0;
+    for (int i = 0; i < fileSize; ++i) {
+        char* code = codes[(unsigned char)text[i]];
+        for (int j = 0; j < strlen(code); ++j) {
+            buffer[bufferIndex++] = code[j];
+            if (bufferIndex == 8) {
+                unsigned char byte = 0;
+                for (int k = 0; k < 8; ++k) {
+                    byte = byte << 1 | (buffer[k] - '0');
+                }
+                fwrite(&byte, sizeof(unsigned char), 1, out);
+                bufferIndex = 0;
+          }   }  }
+    if (bufferIndex > 0) {
+        unsigned char byte = 0;
+        for (int i = 0; i < bufferIndex; ++i) {
+            byte = byte << 1 | (buffer[i] - '0');
+        }
+        byte = byte << (8 - bufferIndex);
+        fwrite(&byte, sizeof(unsigned char), 1, out);
+    }
+    free(text);
+    fclose(in);
+    fclose(out);
+}
+
+void decompressFile(char* input, char* output) {
+    FILE* in = fopen(input, "rb");
+    FILE* out = fopen(output, "w");
+
+    if (!in || !out) {
+        perror("File open failed");
+        return; }
+
+    int size;
+    
+    fread(&size, sizeof(int), 1, in);
+
+   
+    long fileSize;
+   
+    fread(&fileSize, sizeof(long), 1, in);
+
+    char chars[256];
+    int freqArray[256];
+    for (int i = 0; i < size; ++i) {
+        fread(&chars[i], sizeof(char), 1, in);
+        fread(&freqArray[i], sizeof(int), 1, in);
+    }
+    Node* root = buildTree(chars, freqArray, size);
+    Node* current = root;
+    unsigned char byte;
+    long outputCount = 0;
+    while (fread(&byte, sizeof(unsigned char), 1, in)) {
+        for (int i = 7; i >= 0; --i) {
+            if (outputCount >= fileSize) {
+                break;
+            }
+            int bit = (byte >> i) & 1;
+            current = bit ? current->right : current->left;
+            if (!current->left && !current->right) {
+                fputc(current->ch, out);
+                current = root;
+                outputCount++;
+            }    }   }
+
+    fclose(in);
+    fclose(out);
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 3) {
+        printf("Usage: %s <option> <file>\n", argv[0]);
+        printf("Options:\n");
+        printf("  -c - Compress file\n");
+        printf("  -d - Decompress file\n");
+        return 1;
+    }
+
+    
+    
+    char* option = argv[1];
+    char* inputFile = argv[2];
+    char outputFile[256];
+    if (strcmp(option, "-c") == 0) {
+        snprintf(outputFile, sizeof(outputFile), "huf.%s", inputFile);
+        compressFile(inputFile, outputFile);
+    } else if (strcmp(option, "-d") == 0) {
+        snprintf(outputFile, sizeof(outputFile), "orig.%s", inputFile);
+        decompressFile(inputFile, outputFile);
+    } else {
+        printf("Invalid option. Use '-c' for compression and '-d' for decompression.\n");
+        return 1; }
+
+    return 0;}
