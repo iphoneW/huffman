@@ -1,0 +1,7 @@
+void getFreq(char* text, int* freqs) {
+
+    for (int i = 0; i < strlen(text); ++i) {
+
+        freqs[(unsigned char)text[i]]++;}}
+
+//פונקציה למציאת הפעמים שהתו מופיע בטקסט
